@@ -9,12 +9,14 @@ from datetime import datetime
 import time
 from sgd import SGD_Simple
 from svrg import SVRG_k, SVRG_Snapshot
-from utils import MNIST_dataset, MNIST_two_layers, MNIST_one_layer, AverageCalculator, accuracy, plot_train_stats
+from utils import MNIST_dataset, CIFAR10_dataset, MNIST_two_layers, MNIST_one_layer, CIFAR10_ConvNet, AverageCalculator, accuracy, plot_train_stats
 
 parser = argparse.ArgumentParser(description="Train SVRG/SGD on MNIST data.")
 parser.add_argument('--optimizer', type=str, default="SVRG",
                     help="optimizer.")
 parser.add_argument('--nn_model', type=str, default="MNIST_one_layer",
+                    help="neural network model.")
+parser.add_argument('--dataset', type=str, default="MNIST",
                     help="neural network model.")
 parser.add_argument('--n_epoch', type=int, default=100,
                     help="number of training iterations.")
@@ -33,13 +35,20 @@ parser.add_argument('--print_every', type=int, default=1,
 OUTPUT_DIR = "outputs"
 BATCH_SIZE_LARGE = 256  # for testing and the full-batch outer train loop
 
-def train_epoch_SGD(model, optimizer, train_loader, loss_fn):
+device = 'cpu'
+if torch.cuda.is_available():
+    device = 'cuda'
+print("Using device: {}".format(device))
+
+def train_epoch_SGD(model, optimizer, train_loader, loss_fn, flatten_img=True):
     model.train()
     loss = AverageCalculator()
     acc = AverageCalculator()
     
     for images, labels in train_loader:
-        images = images.view(images.shape[0], -1).to(device)
+        images = images.to(device)
+        if flatten_img:
+            images = images.view(images.shape[0], -1)
         yhat = model(images)
         labels = labels.to(device)
         loss_iter = loss_fn(yhat, labels)
@@ -56,7 +65,7 @@ def train_epoch_SGD(model, optimizer, train_loader, loss_fn):
     
     return loss.avg, acc.avg
 
-def train_epoch_SVRG(model_k, model_snapshot, optimizer_k, optimizer_snapshot, train_loader, loss_fn):
+def train_epoch_SVRG(model_k, model_snapshot, optimizer_k, optimizer_snapshot, train_loader, loss_fn, flatten_img=True):
     model_k.train()
     model_snapshot.train()
     loss = AverageCalculator()
@@ -65,7 +74,9 @@ def train_epoch_SVRG(model_k, model_snapshot, optimizer_k, optimizer_snapshot, t
     # calculate the mean gradient
     optimizer_snapshot.zero_grad()  # zero_grad outside for loop, accumulate gradient inside
     for images, labels in train_loader:
-        images = images.view(images.shape[0], -1).to(device)
+        images = images.to(device)
+        if flatten_img:
+            images = images.view(images.shape[0], -1)
         yhat = model_snapshot(images)
         labels = labels.to(device)
         snapshot_loss = loss_fn(yhat, labels) / len(train_loader)
@@ -76,7 +87,9 @@ def train_epoch_SVRG(model_k, model_snapshot, optimizer_k, optimizer_snapshot, t
     optimizer_k.set_u(u)
     
     for images, labels in train_loader:
-        images = images.view(images.shape[0], -1).to(device)
+        images = images.to(device)
+        if flatten_img:
+            images = images.view(images.shape[0], -1)
         yhat = model_k(images)
         labels = labels.to(device)
         loss_iter = loss_fn(yhat, labels)
@@ -132,26 +145,31 @@ if __name__ == "__main__":
         raise ValueError("--optimizer must be 'SGD' or 'SVRG'.")
     print(args_dict)
 
-    device = 'cpu'
-    if torch.cuda.is_available():
-        device = 'cuda'
-    print("Using device: {}".format(device))
-
     # load the data
-    train_set, val_set = MNIST_dataset()
+    if args.dataset == "MNIST":
+        train_set, val_set = MNIST_dataset()
+        flatten_img = True
+    elif args.dataset == "CIFAR10":
+        train_set, val_set = CIFAR10_dataset() 
+        flatten_img = False
+    else:
+        raise ValueError("Unknown dataset")
+    
     train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=BATCH_SIZE_LARGE, shuffle=True)
 
     if args.nn_model == "MNIST_one_layer":
-        MNIST_model = MNIST_one_layer  # function name 
+        NN_model = MNIST_one_layer  # function name 
     elif args.nn_model == "MNIST_two_layers":
-        MNIST_model = MNIST_two_layers
+        NN_model = MNIST_two_layers
+    elif args.nn_model == "CIFAR10_convnet":
+        NN_model = CIFAR10_ConvNet
     else:
         raise ValueError("Unknown nn_model.")
 
-    model = MNIST_model().to(device)
+    model = NN_model().to(device)
     if args.optimizer == 'SVRG':
-        model_snapshot = MNIST_model().to(device)
+        model_snapshot = NN_model().to(device)
 
     lr = args.lr  # learning rate
     n_epoch = args.n_epoch  # the number of epochs
@@ -187,9 +205,9 @@ if __name__ == "__main__":
 
         # training 
         if args.optimizer == "SGD":
-            train_loss, train_acc = train_epoch_SGD(model, optimizer, train_loader, loss_fn)
+            train_loss, train_acc = train_epoch_SGD(model, optimizer, train_loader, loss_fn, flatten_img=flatten_img)
         elif args.optimizer == "SVRG":
-            train_loss, train_acc = train_epoch_SVRG(model, model_snapshot, optimizer, optimizer_snapshot, train_loader, loss_fn)
+            train_loss, train_acc = train_epoch_SVRG(model, model_snapshot, optimizer, optimizer_snapshot, train_loader, loss_fn, flatten_img=flatten_img)
         
         # validation 
         val_loss, val_acc = validate_epoch(model, val_loader, loss_fn)
