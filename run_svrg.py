@@ -125,7 +125,9 @@ def validate_epoch(model, val_loader, loss_fn):
     acc = AverageCalculator()
 
     for images, labels in val_loader:
-        images = images.view(images.shape[0], -1).to(device)
+        images = images.to(device)
+        if flatten_img:
+            images = images.view(images.shape[0], -1)
         yhat = model(images)
         labels = labels.to(device)
 
@@ -173,7 +175,10 @@ if __name__ == "__main__":
 
     lr = args.lr  # learning rate
     n_epoch = args.n_epoch  # the number of epochs
+
     loss_fn = nn.NLLLoss()  # The loss function 
+    if args.nn_model == "CIFAR10_convnet":
+        loss_fn = nn.CrossEntropyLoss()
 
     # the optimizer 
     if args.optimizer == "SGD":
