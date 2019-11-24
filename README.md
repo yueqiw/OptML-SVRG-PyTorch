@@ -14,9 +14,7 @@ git clone https://github.com/yueqiw/OptML-SVRG-NonConvex.git
 ### Train neural networks with SVRG
 ```
 python run_svrg.py --optimizer SVRG --nn_model CIFAR10_convnet --dataset CIFAR10 --lr 0.01
-# or
 python run_svrg.py --optimizer SVRG --nn_model MNIST_one_layer --dataset MNIST --lr 0.01
-# or 
 python run_svrg.py --optimizer SGD --nn_model MNIST_one_layer --dataset MNIST --lr 0.01
 ```
 
