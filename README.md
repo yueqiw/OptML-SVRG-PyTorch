@@ -30,3 +30,9 @@ python run.py --CIFAR10_SGD_lr_search
 python run.py --CIFAR10_SVRG_small_batch_lr_search
 python run.py --CIFAR10_SGD_small_batch_lr_search
 ```
+
+### Plot the training curve results
+```
+python plot_mnist_results.py 
+python plot_cifar_results.py 
+```
