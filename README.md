@@ -22,4 +22,11 @@ python run_svrg.py --optimizer SGD --nn_model MNIST_one_layer --dataset MNIST --
 ```
 python run.py --CIFAR10_SVRG_lr_search
 python run.py --CIFAR10_SGD_lr_search
+python run.py --SVRG_small_batch_lr_search
+python run.py --SGD_small_batch_lr_search
+
+python run.py --CIFAR10_SVRG_lr_search
+python run.py --CIFAR10_SGD_lr_search
+python run.py --CIFAR10_SVRG_small_batch_lr_search
+python run.py --CIFAR10_SGD_small_batch_lr_search
 ```
